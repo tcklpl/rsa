@@ -1,57 +1,23 @@
 #include <stdio.h>
 #include <time.h>
 #include <stdlib.h>
-#include <string.h>
-#define ll long long
+#define ll long long int
 
-// -----------------------------------------------------------------------------------------------------
-// SE O PROJETO ESTIVER SENDO ABERTO UTILIZANDO O MinGW É PRECISO ADICIONAR
-// #define srandom srand
-// #define random rand
-// NA stdlib.h DO SEU MinGW
-// -----------------------------------------------------------------------------------------------------
+// Liga ou desliga as mensagens de log
+#define DEBUG 1
 
-struct ascii_number {
-    int number;
-    char letter;
-};
+// Caso o projeto esteja sendo editado no sistema Windows, definir bibliotecas inexistentes
+#ifdef _WIN32
+#define srandom srand
+#define random rand
+#endif
 
-/// Preenche uma lista de structs ascii_number com uma string fornecida
-/// \param out A lista a ser preenchida
-/// \param size O tamanho da array, deve ser passado como referência
-/// \param string A string a fornecer de fonte de preenchimento
-void generate_ascii_number_array(struct ascii_number out[], unsigned ll *size, char *string) {
-    unsigned ll i;
-    struct ascii_number temp;
-    for (i = 0; i < strlen(string); i++) {
-        temp.letter = string[i];
-        temp.number = string[i];
-        out[i] = temp;
-    }
-    *size = i;
-}
-
-/// Zera e preenche uma string com valores numéricos de uma lista de structs ascii_number
-/// \param in A lista a preencher a string
-/// \param size O tamanho da lista
-/// \param string A string a ser preenchida
-void ascii_array_to_number_string(struct ascii_number in[], unsigned ll size, char *string) {
-    unsigned ll i;
-    string[0] = '\0';
-    for (i = 0; i < size; i++)
-        sprintf(string, "%s%d", string, in[i].number);
-}
-
-/// Zera e preenche uma string com os caracteres de uma lista de structs ascii_number
-/// \param in A lsita a preencher a string
-/// \param size O tamanho da lista
-/// \param string A string a ser preenchida
-void ascii_array_to_char_string(struct ascii_number in[], unsigned ll size, char *string) {
-    unsigned ll i;
-    string[0] = '\0';
-    for (i = 0; i < size; i++)
-        strcat(string, &in[i].letter);
-}
+// Macro para mensagens de log
+#if DEBUG == 1
+#define log(x) printf("[LOG] %s\n", x)
+#else
+#define log(x)
+#endif
 
 /// Método de MDC por algorítmo de Euclides
 /// \param a primeiro valor
@@ -88,7 +54,11 @@ ll mod(ll a, unsigned ll n, ll p) {
     return res;
 }
 #pragma clang diagnostic pop
-/// Checa a primalidade de um número
+/// Checa a primalidade de um número por meio do teorema de Fermat
+/// Teorema de Fermat:
+///
+///     α é primo, logo ∀x ∈ (2, α), mdc(x, α) = 1 ∧ x^n-1 ≡ 1 (mod α)
+///
 /// \param n O número a ser checado
 /// \param iterations O número de iterações a serem checadas
 /// \return 1 caso for primo e 0 caso não for
@@ -103,6 +73,7 @@ int primo(ll n, int iterations) {
     srandom(time(NULL));
 
     while (iterations > 0) {
+        // de 2 a n
         teste = 2 + random()%(n-4);
 
         // checa se os números são coprimos
@@ -118,43 +89,53 @@ int primo(ll n, int iterations) {
     return 1;
 }
 
-int main() {
+/// Gera as chaves e, d, phi e n para a criptografia
+/// \param e saída, passada como referência
+/// \param d "
+/// \param phi "
+/// \param n  "
+void generate_keys(ll *e, ll *d, ll *phi, ll *n) {
 
     // 'p' e 'q' são números primos escoolhidos aleatoriamente
     // 'n' é pq
     // 'phi' é (p - 1)(q - 1)
     // 'e' é um número tal que (2 < e < phi) e 'e' e 'phi' são co-primos
-    ll p, q, n, phi, e;
+    // 'd' é um número tal que de (mod phi) = 1
+    ll p, q;
     srandom(time(NULL));
-    printf("Gerando p...\n");
+    log("Gerando p");
     do {
         p = random();
     } while (!primo(p, 2));
-    printf("Gerando q...\n");
+    log("Gerando q");
     do {
         q = random();
     } while (!primo(q, 2) || p == q);
-    printf("Gerando n e phi...\n");
-    n = p * q;
-    phi = (p - 1) * (q - 1);
-    printf("Gerando e...\n");
+    log("Gerando n e phi");
+    *n = p * q;
+    *phi = (p - 1) * (q - 1);
+    log("Gerando e e d");
     // 'e' deve ser menor que 'phi'
-    for (e = 2; e < phi; e++) {
-        // 'e' deve ser co-primo com 'phi'
-        if (mdc(e, phi) == 1)
+    for (*e = 2; *e < *phi; (*e)++) {
+        // 'e' deve ser co-primo com 'phi' e 'n'
+        if (mdc(*e, *phi) == 1 && mdc(*e, *n) == 1)
             break;
     }
+    // 'd' deve obedecer a equação
+    //      de (mod phi) = 1
+    for (*d = *e + 1; ; (*d)++) {
+        if (((*d * *e) % *phi) == 1)
+            break;
+    }
+    log("Chaves geradas com sucesso");
+}
 
-    printf("Chaves:\n\t%lld\n\t%lld\n\nn = %lld\nphi = %lld\ne = %lld\n", p, q, n, phi, e);
+int main(int argc, char *argv[]) {
 
-    char in[3], out[40];
-    struct ascii_number t[40];
-    unsigned ll t_s;
-    fgets(in, 3, stdin);
-    generate_ascii_number_array(t, &t_s, in);
-    ascii_array_to_number_string(t, t_s, out);
-    puts(out);
-    ascii_array_to_char_string(t, t_s, out);
-    puts(out);
+    ll n, phi, e, d;
+    generate_keys(&e, &d, &phi, &n);
+
+    //TODO: Actually encrypt
+
     return 0;
 }
