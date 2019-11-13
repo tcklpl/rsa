@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <time.h>
 #include <stdlib.h>
+#include <string.h>
 #define ll long long int
 
 // Liga ou desliga as mensagens de log
@@ -130,12 +131,69 @@ void generate_keys(ll *e, ll *d, ll *phi, ll *n) {
     log("Chaves geradas com sucesso");
 }
 
+void ascii_to_number_array(char text[], ll size, ll output[]) {
+    ll i;
+    for (i = 0; i < size; i++) {
+        output[i] = (ll) text[i];
+    }
+}
+
+void number_array_to_ascii(ll numbers[], ll size, char out[]) {
+    ll i;
+    for (i = 0; i < size; i++)
+        out[i] = (char) numbers[i];
+    out[i] = '\0';
+}
+
+void cypher_blocks(ll blocks[], ll size, ll key, ll n) {
+    ll i;
+    for (i = 0; i < size; i++) {
+        blocks[i] = mod(blocks[i], key, n);
+    }
+}
+
+void print_blocks(ll blocks[], ll size) {
+    ll i;
+    for (i = 0; i < size; i++) {
+        printf("%lld ", blocks[i]);
+    }
+    printf("\n");
+}
+
 int main(int argc, char *argv[]) {
 
     ll n, phi, e, d;
     generate_keys(&e, &d, &phi, &n);
 
-    //TODO: Actually encrypt
+    printf("e = %lld\nd = %lld\nphi = %lld\nn = %lld\n", e, d, phi, n);
+    printf("Insere o texto ae: ");
+
+    char texto[500], texto2[500];
+    gets(texto);
+
+    ll size = strlen(texto);
+
+    ll raw[500], cypher[500];
+    ascii_to_number_array(texto, size, raw);
+    printf("-----------------------------------\n");
+
+    print_blocks(raw, size);
+
+    printf("-----------------------------------\n");
+
+    cypher_blocks(raw, size, e, n);
+    print_blocks(raw, size);
+
+    printf("-----------------------------------\n");
+
+    cypher_blocks(raw, size, d, n);
+    print_blocks(raw, size);
+
+    printf("-----------------------------------\n");
+
+    number_array_to_ascii(raw, size, texto2);
+    puts(texto2);
+
 
     return 0;
 }
