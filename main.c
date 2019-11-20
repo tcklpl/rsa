@@ -5,7 +5,8 @@
 #define ll long long int
 
 // Liga ou desliga as mensagens de log
-#define DEBUG 1
+#define DEBUG 0
+
 
 // Caso o projeto esteja sendo editado no sistema Windows, definir bibliotecas inexistentes
 #ifdef _WIN32
@@ -19,6 +20,10 @@
 #else
 #define log(x)
 #endif
+
+struct rsa_key {
+    ll ed, n;
+};
 
 /// Método de MDC por algorítmo de Euclides
 /// \param a primeiro valor
@@ -105,13 +110,17 @@ void generate_keys(ll *e, ll *d, ll *phi, ll *n) {
     ll p, q;
     srandom(time(NULL));
     log("Gerando p");
-    do {
-        p = random();
-    } while (!primo(p, 2));
+    p = random();
+    if (!(p & 1))
+        p++;
+    while (!primo(p, 2))
+        p += 2;
     log("Gerando q");
-    do {
-        q = random();
-    } while (!primo(q, 2) || p == q);
+    q = random();
+    if (!(q & 1))
+        q++;
+    while (!primo(q, 2) || p == q)
+        q += 2;
     log("Gerando n e phi");
     *n = p * q;
     *phi = (p - 1) * (q - 1);
@@ -160,40 +169,189 @@ void print_blocks(ll blocks[], ll size) {
     printf("\n");
 }
 
+void read_key(char *nome, void *p, size_t size) {
+    FILE *f;
+    f = fopen(nome, "rb");
+    if (f == NULL) {
+        printf("Impossível abrir arquivo de chave\n");
+        exit(2);
+    }
+    fread(p, size, 1, f);
+    fclose(f);
+}
+
+void generate_keyfiles() {
+    FILE *f;
+    ll n, phi, e, d;
+    struct rsa_key encrypt, decrypt;
+
+    generate_keys(&e, &d, &phi, &n);
+
+    encrypt.ed = e;
+    encrypt.n = n;
+
+    decrypt.ed = d;
+    decrypt.n = n;
+
+    f = fopen("encrypt.rsakey", "wb");
+    if (f == NULL) {
+        printf("Impossível criar arquivo\n");
+        exit(3);
+    }
+    fwrite(&encrypt, sizeof(struct rsa_key), 1, f);
+    fclose(f);
+
+    f = fopen("decrypt.rsakey", "wb");
+    if (f == NULL) {
+        printf("Impossível criar arquivo\n");
+        exit(3);
+    }
+    fwrite(&decrypt, sizeof(struct rsa_key), 1, f);
+    fclose(f);
+}
+
+void encrypt_file(char *file) {
+    FILE *f;
+    struct rsa_key encrypt;
+    char text[5000], c;
+    ll raw[5000];
+    int raw_pos = 0;
+
+    log("Abrindo arquivo de chave");
+
+    f = fopen("encrypt.rsakey", "rb");
+    if (f == NULL) {
+        printf("Impossível criar arquivo de chave ou o mesmo nao existe\n");
+        exit(3);
+    }
+
+    log("Lendo chave");
+    fread(&encrypt, sizeof(struct rsa_key), 1, f);
+    fclose(f);
+
+    log("Abrindo arquivo para encriptar");
+    f = fopen(file, "r");
+    if (f == NULL) {
+        printf("Impossível criar arquivo ou o mesmo nao existe\n");
+        exit(4);
+    }
+
+    log("Lendo arquivo");
+    c = fgetc(f);
+    while (c != EOF) {
+        text[raw_pos++] = c;
+        c = fgetc(f);
+    }
+    fclose(f);
+
+    log("Convertendo para numeros");
+    ascii_to_number_array(text, raw_pos, raw);
+    log("Encriptando");
+    cypher_blocks(raw, raw_pos, encrypt.ed, encrypt.n);
+
+    log("Abrindo arquivo de saida");
+
+    f = fopen("teste.crypt", "wb");
+    if (f == NULL) {
+        printf("Impossível criar arquivo de saida\n");
+        exit(4);
+    }
+
+    log("Escrevendo arquivo de chave");
+    fwrite(raw, sizeof(ll), raw_pos, f);
+    fclose(f);
+    log("Encriptado");
+
+}
+
+void decrypt_file(char *file) {
+    FILE *f;
+    struct rsa_key decrypt;
+    char text[5000];
+    ll raw[5000], temp;
+    int raw_pos = 0, i;
+
+    log("Abrindo arquivo de chave");
+
+    f = fopen("decrypt.rsakey", "rb");
+    if (f == NULL) {
+        printf("Impossível criar arquivo de chave ou o mesmo nao existe\n");
+        exit(3);
+    }
+
+    log("Lendo chave");
+    fread(&decrypt, sizeof(struct rsa_key), 1, f);
+    fclose(f);
+
+    log("Abrindo arquivo para decriptar");
+    f = fopen(file, "rb");
+    if (f == NULL) {
+        printf("Impossível criar arquivo ou o mesmo nao existe\n");
+        exit(4);
+    }
+
+    log("Lendo arquivo");
+    fread(&temp, sizeof(ll), 1, f);
+    raw[raw_pos++] = temp;
+    while (!feof(f)) {
+        fread(&temp, sizeof(ll), 1, f);
+        raw[raw_pos++] = temp;
+    }
+    fclose(f);
+
+    log("Decriptando");
+    cypher_blocks(raw, raw_pos, decrypt.ed, decrypt.n);
+
+    log("Convertendo para texto");
+    number_array_to_ascii(raw, raw_pos, text);
+
+    log("Abrindo arquivo de saida");
+
+    f = fopen("teste.out.txt", "w");
+    if (f == NULL) {
+        printf("Impossível criar arquivo de saida\n");
+        exit(4);
+    }
+
+    log("Escrevendo saida");
+    for (i = 0; i < raw_pos - 1; i++)
+        fputc(text[i], f);
+    fclose(f);
+    log("Decriptado");
+
+}
+
 int main(int argc, char *argv[]) {
 
     ll n, phi, e, d;
-    generate_keys(&e, &d, &phi, &n);
+    struct rsa_key encrypt, decrypt;
+    int op;
 
-    printf("e = %lld\nd = %lld\nphi = %lld\nn = %lld\n", e, d, phi, n);
-    printf("Insere o texto ae: ");
+    do {
+        printf("----------------------------= RSA =----------------------------\n");
+        printf("Operacoes: \n");
+        printf("    1 - Gerar Arquivos de chave\n");
+        printf("    2 - Criptografar Arquivo\n");
+        printf("    3 - Descriptografar Arquivo\n");
+        printf("    0 - SAIR\n");
+        printf("\n..: ");
 
-    char texto[500], texto2[500];
-    gets(texto);
+        scanf("%d%*c", &op);
 
-    ll size = strlen(texto);
-
-    ll raw[500], cypher[500];
-    ascii_to_number_array(texto, size, raw);
-    printf("-----------------------------------\n");
-
-    print_blocks(raw, size);
-
-    printf("-----------------------------------\n");
-
-    cypher_blocks(raw, size, e, n);
-    print_blocks(raw, size);
-
-    printf("-----------------------------------\n");
-
-    cypher_blocks(raw, size, d, n);
-    print_blocks(raw, size);
-
-    printf("-----------------------------------\n");
-
-    number_array_to_ascii(raw, size, texto2);
-    puts(texto2);
-
+        switch (op) {
+        case 1:
+            generate_keyfiles();
+            break;
+        case 2:
+            encrypt_file("teste.txt");
+            break;
+        case 3:
+            decrypt_file("teste.crypt");
+            break;
+        default:
+            break;
+        }
+    } while (op != 0);
 
     return 0;
 }
