@@ -196,6 +196,7 @@ void generate_keyfiles() {
     f = fopen("encrypt.rsakey", "wb");
     if (f == NULL) {
         printf("Impossível criar arquivo\n");
+        scanf("%*c");
         exit(3);
     }
     fwrite(&encrypt, sizeof(struct rsa_key), 1, f);
@@ -204,6 +205,7 @@ void generate_keyfiles() {
     f = fopen("decrypt.rsakey", "wb");
     if (f == NULL) {
         printf("Impossível criar arquivo\n");
+        scanf("%*c");
         exit(3);
     }
     fwrite(&decrypt, sizeof(struct rsa_key), 1, f);
@@ -222,6 +224,7 @@ void encrypt_file(char *file) {
     f = fopen("encrypt.rsakey", "rb");
     if (f == NULL) {
         printf("Impossível criar arquivo de chave ou o mesmo nao existe\n");
+        scanf("%*c");
         exit(3);
     }
 
@@ -233,6 +236,7 @@ void encrypt_file(char *file) {
     f = fopen(file, "r");
     if (f == NULL) {
         printf("Impossível criar arquivo ou o mesmo nao existe\n");
+        scanf("%*c");
         exit(4);
     }
 
@@ -251,9 +255,10 @@ void encrypt_file(char *file) {
 
     log("Abrindo arquivo de saida");
 
-    f = fopen("teste.crypt", "wb");
+    f = fopen(strcat(file, ".crypt"), "wb");
     if (f == NULL) {
         printf("Impossível criar arquivo de saida\n");
+        scanf("%*c");
         exit(4);
     }
 
@@ -276,6 +281,7 @@ void decrypt_file(char *file) {
     f = fopen("decrypt.rsakey", "rb");
     if (f == NULL) {
         printf("Impossível criar arquivo de chave ou o mesmo nao existe\n");
+        scanf("%*c");
         exit(3);
     }
 
@@ -287,6 +293,7 @@ void decrypt_file(char *file) {
     f = fopen(file, "rb");
     if (f == NULL) {
         printf("Impossível criar arquivo ou o mesmo nao existe\n");
+        scanf("%*c");
         exit(4);
     }
 
@@ -307,9 +314,13 @@ void decrypt_file(char *file) {
 
     log("Abrindo arquivo de saida");
 
-    f = fopen("teste.out.txt", "w");
+    // remover .crypt
+    file[strlen(file) - 6] = '\0';
+
+    f = fopen(file, "w");
     if (f == NULL) {
         printf("Impossível criar arquivo de saida\n");
+        scanf("%*c");
         exit(4);
     }
 
@@ -321,11 +332,16 @@ void decrypt_file(char *file) {
 
 }
 
+void delete_keys() {
+    remove("encrypt.rsakey");
+    remove("decrypt.rsakey");
+    printf("Chaves removidas com sucesso!\n");
+}
+
 int main(int argc, char *argv[]) {
 
-    ll n, phi, e, d;
-    struct rsa_key encrypt, decrypt;
     int op;
+    char file_name[200];
 
     do {
         printf("----------------------------= RSA =----------------------------\n");
@@ -333,23 +349,31 @@ int main(int argc, char *argv[]) {
         printf("    1 - Gerar Arquivos de chave\n");
         printf("    2 - Criptografar Arquivo\n");
         printf("    3 - Descriptografar Arquivo\n");
+        printf("    4 - Apagar arquivos de chave\n");
         printf("    0 - SAIR\n");
         printf("\n..: ");
 
         scanf("%d%*c", &op);
 
         switch (op) {
-        case 1:
-            generate_keyfiles();
-            break;
-        case 2:
-            encrypt_file("teste.txt");
-            break;
-        case 3:
-            decrypt_file("teste.crypt");
-            break;
-        default:
-            break;
+            case 1:
+                generate_keyfiles();
+                break;
+            case 2:
+                printf("Insira o nome do arquivo a ser criptografado:\n..: ");
+                gets(file_name);
+                encrypt_file(file_name);
+                break;
+            case 3:
+                printf("Insira o nome do arquivo a ser descriptografado:\n..: ");
+                gets(file_name);
+                decrypt_file(file_name);
+                break;
+            case 4:
+                delete_keys();
+                break;
+            default:
+                break;
         }
     } while (op != 0);
 
